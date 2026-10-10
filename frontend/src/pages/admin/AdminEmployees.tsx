@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 
 import {
   Users,
@@ -30,7 +30,6 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { ErrorState } from '../../components/common/ErrorState';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
-
 // =====================================================
 // TYPES
 // =====================================================
@@ -50,7 +49,6 @@ interface Employee {
   totalCollections?: number;
 }
 
-
 interface Collection {
   _id: string;
   collectionType: 'house' | 'industry' | 'village';
@@ -62,11 +60,9 @@ interface Collection {
   remarks?: string;
 }
 
-
 interface EmployeeDetails extends Employee {
   collections?: Collection[];
 }
-
 
 interface EmployeeForm {
   name: string;
@@ -76,7 +72,6 @@ interface EmployeeForm {
   profilePhoto: string;
   password: string;
 }
-
 
 interface CollectionForm {
   collectionType: 'house' | 'industry' | 'village';
@@ -88,7 +83,6 @@ interface CollectionForm {
   remarks: string;
 }
 
-
 // =====================================================
 // COMPONENT
 // =====================================================
@@ -99,50 +93,34 @@ export const AdminEmployees: React.FC = () => {
 
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
-
   // =====================================================
   // EMPLOYEES
   // =====================================================
 
-  const [employees, setEmployees] =
-    useState<Employee[]>([]);
-
-  const [searchTerm, setSearchTerm] =
-    useState('');
-
-  const [selectedStatus, setSelectedStatus] =
-    useState('All');
-
-  const [isLoading, setIsLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState('');
-
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // =====================================================
   // EMPLOYEE ADD / EDIT
   // =====================================================
 
-  const [showForm, setShowForm] =
-    useState(false);
-
+  const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] =
     useState<Employee | null>(null);
 
-  const [form, setForm] =
-    useState<EmployeeForm>({
-      name: '',
-      email: '',
-      phone: '',
-      address: '',
-      profilePhoto: '',
-      password: '',
-    });
+  const [form, setForm] = useState<EmployeeForm>({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    profilePhoto: '',
+    password: '',
+  });
 
-  const [isSaving, setIsSaving] =
-    useState(false);
-
+  const [isSaving, setIsSaving] = useState(false);
 
   // =====================================================
   // EMPLOYEE DETAILS
@@ -154,7 +132,6 @@ export const AdminEmployees: React.FC = () => {
   const [isDetailsLoading, setIsDetailsLoading] =
     useState(false);
 
-
   // =====================================================
   // EMPLOYEE STATUS
   // =====================================================
@@ -164,7 +141,6 @@ export const AdminEmployees: React.FC = () => {
 
   const [isUpdatingStatus, setIsUpdatingStatus] =
     useState(false);
-
 
   // =====================================================
   // COLLECTION EDIT
@@ -190,7 +166,6 @@ export const AdminEmployees: React.FC = () => {
       remarks: '',
     });
 
-
   // =====================================================
   // COLLECTION DELETE
   // =====================================================
@@ -200,7 +175,6 @@ export const AdminEmployees: React.FC = () => {
 
   const [isDeletingCollection, setIsDeletingCollection] =
     useState(false);
-
 
   // =====================================================
   // FETCH EMPLOYEES
@@ -221,25 +195,20 @@ export const AdminEmployees: React.FC = () => {
         params.status = selectedStatus;
       }
 
-      const response = await axios.get(
-        'http://localhost:5000/api/users/employees',
-        {
-          params,
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.get('/users/employees', {
+        params,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       setEmployees(response.data?.data || []);
     } catch (err: any) {
-      console.error(
-        'Fetch employees error:',
-        err
-      );
+      console.error('Fetch employees error:', err);
 
       setError(
         err.response?.data?.message ||
+          err.message ||
           'Failed to load employees'
       );
     } finally {
@@ -247,26 +216,20 @@ export const AdminEmployees: React.FC = () => {
     }
   };
 
-
   useEffect(() => {
     if (token) {
       fetchEmployees();
     }
   }, [token, selectedStatus]);
 
-
   // =====================================================
   // SEARCH
   // =====================================================
 
-  const handleSearch = (
-    e: React.FormEvent
-  ) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-
     fetchEmployees();
   };
-
 
   // =====================================================
   // EMPLOYEE FORM
@@ -285,24 +248,18 @@ export const AdminEmployees: React.FC = () => {
     setEditingEmployee(null);
   };
 
-
   const openAddForm = () => {
     resetForm();
     setShowForm(true);
   };
 
-
-  const openEditForm = (
-    employee: Employee
-  ) => {
+  const openEditForm = (employee: Employee) => {
     setEditingEmployee(employee);
 
     let phone = employee.phone || '';
 
     if (phone.startsWith('+91')) {
-      phone = phone
-        .replace('+91', '')
-        .replace(/\s/g, '');
+      phone = phone.replace('+91', '').replace(/\s/g, '');
     }
 
     setForm({
@@ -317,7 +274,6 @@ export const AdminEmployees: React.FC = () => {
     setShowForm(true);
   };
 
-
   const closeForm = () => {
     if (isSaving) return;
 
@@ -325,15 +281,12 @@ export const AdminEmployees: React.FC = () => {
     resetForm();
   };
 
-
   const handleFormChange = (
     field: keyof EmployeeForm,
     value: string
   ) => {
     if (field === 'phone') {
-      value = value
-        .replace(/\D/g, '')
-        .slice(0, 10);
+      value = value.replace(/\D/g, '').slice(0, 10);
     }
 
     setForm((previous) => ({
@@ -341,7 +294,6 @@ export const AdminEmployees: React.FC = () => {
       [field]: value,
     }));
   };
-
 
   // =====================================================
   // EMPLOYEE PHOTO
@@ -355,18 +307,12 @@ export const AdminEmployees: React.FC = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showToast(
-        'Please select a valid image file',
-        'error'
-      );
+      showToast('Please select a valid image file', 'error');
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      showToast(
-        'Photo size must be less than 2 MB',
-        'error'
-      );
+      showToast('Photo size must be less than 2 MB', 'error');
       return;
     }
 
@@ -382,7 +328,6 @@ export const AdminEmployees: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-
   const handleRemovePhoto = () => {
     setForm((previous) => ({
       ...previous,
@@ -394,29 +339,20 @@ export const AdminEmployees: React.FC = () => {
     }
   };
 
-
   // =====================================================
   // CREATE / UPDATE EMPLOYEE
   // =====================================================
 
-  const handleSubmit = async (
-    e: React.FormEvent
-  ) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!form.name.trim()) {
-      showToast(
-        'Please enter employee name',
-        'error'
-      );
+      showToast('Please enter employee name', 'error');
       return;
     }
 
     if (!form.email.trim()) {
-      showToast(
-        'Please enter employee email',
-        'error'
-      );
+      showToast('Please enter employee email', 'error');
       return;
     }
 
@@ -430,34 +366,28 @@ export const AdminEmployees: React.FC = () => {
 
     const address = form.address.trim();
 
-if (!address) {
-  showToast(
-    'Please enter employee address',
-    'error'
-  );
-  return;
-}
+    if (!address) {
+      showToast('Please enter employee address', 'error');
+      return;
+    }
 
-if (address.length < 5) {
-  showToast(
-    'Address must be at least 5 characters',
-    'error'
-  );
-  return;
-}
+    if (address.length < 5) {
+      showToast(
+        'Address must be at least 5 characters',
+        'error'
+      );
+      return;
+    }
 
-if (!/[A-Za-z]/.test(address)) {
-  showToast(
-    'Please enter a valid address containing letters',
-    'error'
-  );
-  return;
-}
+    if (!/[A-Za-z]/.test(address)) {
+      showToast(
+        'Please enter a valid address containing letters',
+        'error'
+      );
+      return;
+    }
 
-    if (
-      !editingEmployee &&
-      form.password.length < 6
-    ) {
+    if (!editingEmployee && form.password.length < 6) {
       showToast(
         'Password must be at least 6 characters',
         'error'
@@ -489,13 +419,12 @@ if (!/[A-Za-z]/.test(address)) {
       };
 
       if (form.password.trim()) {
-        payload.password =
-          form.password.trim();
+        payload.password = form.password.trim();
       }
 
       if (editingEmployee) {
-        await axios.put(
-          `http://localhost:5000/api/users/employees/${editingEmployee._id}`,
+        await api.put(
+          `/users/employees/${editingEmployee._id}`,
           payload,
           {
             headers: {
@@ -509,8 +438,8 @@ if (!/[A-Za-z]/.test(address)) {
           'success'
         );
       } else {
-        await axios.post(
-          'http://localhost:5000/api/users/employees',
+        await api.post(
+          '/users/employees',
           {
             ...payload,
             password: form.password,
@@ -533,20 +462,16 @@ if (!/[A-Za-z]/.test(address)) {
 
       await fetchEmployees();
 
-      // Refresh currently opened employee
+      // Refresh currently opened employee.
       if (selectedEmployee) {
-        await handleViewEmployee(
-          selectedEmployee
-        );
+        await handleViewEmployee(selectedEmployee);
       }
     } catch (err: any) {
-      console.error(
-        'Save employee error:',
-        err
-      );
+      console.error('Save employee error:', err);
 
       showToast(
         err.response?.data?.message ||
+          err.message ||
           'Failed to save employee',
         'error'
       );
@@ -555,37 +480,27 @@ if (!/[A-Za-z]/.test(address)) {
     }
   };
 
-
   // =====================================================
   // VIEW EMPLOYEE
   // =====================================================
 
-  const handleViewEmployee = async (
-    employee: Employee
-  ) => {
+  const handleViewEmployee = async (employee: Employee) => {
     try {
       setIsDetailsLoading(true);
 
-      const response = await axios.get(
-        `http://localhost:5000/api/users/${employee._id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.get(`/users/${employee._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      setSelectedEmployee(
-        response.data?.data || null
-      );
+      setSelectedEmployee(response.data?.data || null);
     } catch (err: any) {
-      console.error(
-        'View employee error:',
-        err
-      );
+      console.error('View employee error:', err);
 
       showToast(
         err.response?.data?.message ||
+          err.message ||
           'Failed to load employee details',
         'error'
       );
@@ -593,7 +508,6 @@ if (!/[A-Za-z]/.test(address)) {
       setIsDetailsLoading(false);
     }
   };
-
 
   // =====================================================
   // ACTIVATE / DEACTIVATE EMPLOYEE
@@ -603,15 +517,13 @@ if (!/[A-Za-z]/.test(address)) {
     if (!statusTarget) return;
 
     const newStatus =
-      statusTarget.status === 'active'
-        ? 'inactive'
-        : 'active';
+      statusTarget.status === 'active' ? 'inactive' : 'active';
 
     try {
       setIsUpdatingStatus(true);
 
-      await axios.put(
-        `http://localhost:5000/api/users/${statusTarget._id}/status`,
+      await api.put(
+        `/users/${statusTarget._id}/status`,
         {
           status: newStatus,
         },
@@ -624,9 +536,7 @@ if (!/[A-Za-z]/.test(address)) {
 
       showToast(
         `Employee ${statusTarget.name} has been ${
-          newStatus === 'active'
-            ? 'activated'
-            : 'deactivated'
+          newStatus === 'active' ? 'activated' : 'deactivated'
         }`,
         'success'
       );
@@ -639,18 +549,14 @@ if (!/[A-Za-z]/.test(address)) {
         selectedEmployee &&
         selectedEmployee._id === statusTarget._id
       ) {
-        await handleViewEmployee(
-          statusTarget
-        );
+        await handleViewEmployee(statusTarget);
       }
     } catch (err: any) {
-      console.error(
-        'Update employee status error:',
-        err
-      );
+      console.error('Update employee status error:', err);
 
       showToast(
         err.response?.data?.message ||
+          err.message ||
           'Failed to update employee status',
         'error'
       );
@@ -658,7 +564,6 @@ if (!/[A-Za-z]/.test(address)) {
       setIsUpdatingStatus(false);
     }
   };
-
 
   // =====================================================
   // COLLECTION FORM
@@ -678,48 +583,32 @@ if (!/[A-Za-z]/.test(address)) {
     setEditingCollection(null);
   };
 
-
-  const openEditCollectionForm = (
-    collection: Collection
-  ) => {
+  const openEditCollectionForm = (collection: Collection) => {
     setEditingCollection(collection);
 
     const date = collection.collectionDate
-      ? new Date(
-          collection.collectionDate
-        )
-          .toISOString()
-          .split('T')[0]
+      ? new Date(collection.collectionDate).toISOString().split('T')[0]
       : '';
 
     setCollectionForm({
-      collectionType:
-        collection.collectionType,
-      locationName:
-        collection.locationName || '',
-      wasteType:
-        collection.wasteType || '',
-      quantity:
-        String(collection.quantity ?? ''),
+      collectionType: collection.collectionType,
+      locationName: collection.locationName || '',
+      wasteType: collection.wasteType || '',
+      quantity: String(collection.quantity ?? ''),
       collectionDate: date,
-      collected:
-        collection.collected,
-      remarks:
-        collection.remarks || '',
+      collected: collection.collected,
+      remarks: collection.remarks || '',
     });
 
     setShowCollectionForm(true);
   };
 
-
   const closeCollectionForm = () => {
     if (isSavingCollection) return;
 
     setShowCollectionForm(false);
-
     resetCollectionForm();
   };
-
 
   const handleCollectionFormChange = (
     field: keyof CollectionForm,
@@ -730,7 +619,6 @@ if (!/[A-Za-z]/.test(address)) {
       [field]: value,
     }));
   };
-
 
   // =====================================================
   // UPDATE COLLECTION
@@ -746,36 +634,25 @@ if (!/[A-Za-z]/.test(address)) {
     }
 
     if (!collectionForm.locationName.trim()) {
-      showToast(
-        'Please enter collection location',
-        'error'
-      );
+      showToast('Please enter collection location', 'error');
       return;
     }
 
     if (!collectionForm.wasteType.trim()) {
-      showToast(
-        'Please enter waste type',
-        'error'
-      );
+      showToast('Please enter waste type', 'error');
       return;
     }
 
     if (!collectionForm.collectionDate) {
-      showToast(
-        'Please select collection date',
-        'error'
-      );
+      showToast('Please select collection date', 'error');
       return;
     }
 
-    const quantity =
-      Number(collectionForm.quantity);
+    const quantity = Number(collectionForm.quantity);
 
     if (
       collectionForm.collected &&
-      (!Number.isFinite(quantity) ||
-        quantity <= 0)
+      (!Number.isFinite(quantity) || quantity <= 0)
     ) {
       showToast(
         'Collected quantity must be greater than 0 kg',
@@ -787,31 +664,16 @@ if (!/[A-Za-z]/.test(address)) {
     try {
       setIsSavingCollection(true);
 
-      await axios.put(
-        `http://localhost:5000/api/collections/${editingCollection._id}`,
+      await api.put(
+        `/collections/${editingCollection._id}`,
         {
-          collectionType:
-            collectionForm.collectionType,
-
-          locationName:
-            collectionForm.locationName.trim(),
-
-          wasteType:
-            collectionForm.wasteType.trim(),
-
-          quantity:
-            collectionForm.collected
-              ? quantity
-              : 0,
-
-          collectionDate:
-            collectionForm.collectionDate,
-
-          collected:
-            collectionForm.collected,
-
-          remarks:
-            collectionForm.remarks.trim(),
+          collectionType: collectionForm.collectionType,
+          locationName: collectionForm.locationName.trim(),
+          wasteType: collectionForm.wasteType.trim(),
+          quantity: collectionForm.collected ? quantity : 0,
+          collectionDate: collectionForm.collectionDate,
+          collected: collectionForm.collected,
+          remarks: collectionForm.remarks.trim(),
         },
         {
           headers: {
@@ -826,24 +688,19 @@ if (!/[A-Za-z]/.test(address)) {
       );
 
       setShowCollectionForm(false);
-
       resetCollectionForm();
 
       await fetchEmployees();
 
       if (selectedEmployee) {
-        await handleViewEmployee(
-          selectedEmployee
-        );
+        await handleViewEmployee(selectedEmployee);
       }
     } catch (err: any) {
-      console.error(
-        'Update collection error:',
-        err
-      );
+      console.error('Update collection error:', err);
 
       showToast(
         err.response?.data?.message ||
+          err.message ||
           'Failed to update collection record',
         'error'
       );
@@ -851,7 +708,6 @@ if (!/[A-Za-z]/.test(address)) {
       setIsSavingCollection(false);
     }
   };
-
 
   // =====================================================
   // DELETE COLLECTION
@@ -865,8 +721,8 @@ if (!/[A-Za-z]/.test(address)) {
     try {
       setIsDeletingCollection(true);
 
-      await axios.delete(
-        `http://localhost:5000/api/collections/${collectionDeleteTarget._id}`,
+      await api.delete(
+        `/collections/${collectionDeleteTarget._id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -884,18 +740,14 @@ if (!/[A-Za-z]/.test(address)) {
       await fetchEmployees();
 
       if (selectedEmployee) {
-        await handleViewEmployee(
-          selectedEmployee
-        );
+        await handleViewEmployee(selectedEmployee);
       }
     } catch (err: any) {
-      console.error(
-        'Delete collection error:',
-        err
-      );
+      console.error('Delete collection error:', err);
 
       showToast(
         err.response?.data?.message ||
+          err.message ||
           'Failed to delete collection record',
         'error'
       );
@@ -904,66 +756,45 @@ if (!/[A-Za-z]/.test(address)) {
     }
   };
 
-
   // =====================================================
   // FORMAT DATE
   // =====================================================
 
-  const formatDate = (
-    date?: string
-  ) => {
+  const formatDate = (date?: string) => {
     if (!date) return 'N/A';
 
-    return new Date(date).toLocaleDateString(
-      'en-IN',
-      {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }
-    );
+    return new Date(date).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   };
-
 
   // =====================================================
   // SUMMARY
   // =====================================================
 
-  const totalEmployees =
-    employees.length;
+  const totalEmployees = employees.length;
 
-  const activeEmployees =
-    employees.filter(
-      (employee) =>
-        employee.status === 'active'
-    ).length;
+  const activeEmployees = employees.filter(
+    (employee) => employee.status === 'active'
+  ).length;
 
-  const inactiveEmployees =
-    employees.filter(
-      (employee) =>
-        employee.status === 'inactive'
-    ).length;
+  const inactiveEmployees = employees.filter(
+    (employee) => employee.status === 'inactive'
+  ).length;
 
-  const totalWaste =
-    employees.reduce(
-      (total, employee) =>
-        total +
-        Number(
-          employee.totalQuantity || 0
-        ),
-      0
-    );
+  const totalWaste = employees.reduce(
+    (total, employee) =>
+      total + Number(employee.totalQuantity || 0),
+    0
+  );
 
-  const totalCollections =
-    employees.reduce(
-      (total, employee) =>
-        total +
-        Number(
-          employee.totalCollections || 0
-        ),
-      0
-    );
-
+  const totalCollections = employees.reduce(
+    (total, employee) =>
+      total + Number(employee.totalCollections || 0),
+    0
+  );
 
   // =====================================================
   // UI
@@ -971,23 +802,16 @@ if (!/[A-Za-z]/.test(address)) {
 
   return (
     <div className="space-y-6">
-
-
-      {/* =================================================
-          HEADER
-      ================================================= */}
+      {/* HEADER */}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
         <div>
           <div className="flex items-center gap-3">
-
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
               <Truck className="h-6 w-6" />
             </div>
 
             <div>
-
               <h1 className="text-2xl font-extrabold text-slate-900">
                 Employee Management
               </h1>
@@ -995,15 +819,11 @@ if (!/[A-Za-z]/.test(address)) {
               <p className="mt-1 text-xs text-slate-500">
                 Create, view, edit and manage employee accounts
               </p>
-
             </div>
-
           </div>
         </div>
 
-
         <div className="flex gap-2">
-
           <button
             onClick={fetchEmployees}
             disabled={isLoading}
@@ -1011,36 +831,25 @@ if (!/[A-Za-z]/.test(address)) {
           >
             <RefreshCw
               className={`h-4 w-4 ${
-                isLoading
-                  ? 'animate-spin'
-                  : ''
+                isLoading ? 'animate-spin' : ''
               }`}
             />
-
             Refresh
           </button>
-
 
           <button
             onClick={openAddForm}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
           >
             <Plus className="h-4 w-4" />
-
             Add Employee
           </button>
-
         </div>
-
       </div>
 
-
-      {/* =================================================
-          SUMMARY CARDS
-      ================================================= */}
+      {/* SUMMARY CARDS */}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-
         <SummaryCard
           title="Total Employees"
           value={totalEmployees}
@@ -1070,38 +879,25 @@ if (!/[A-Za-z]/.test(address)) {
           value={totalCollections}
           icon={ClipboardList}
         />
-
       </div>
 
-
-      {/* =================================================
-          SEARCH + FILTER
-      ================================================= */}
+      {/* SEARCH + FILTER */}
 
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-
         <form
           onSubmit={handleSearch}
           className="flex w-full gap-2 sm:max-w-md"
         >
-
           <div className="relative flex-1">
-
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
             <input
               value={searchTerm}
-              onChange={(e) =>
-                setSearchTerm(
-                  e.target.value
-                )
-              }
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search employee..."
               className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             />
-
           </div>
-
 
           <button
             type="submit"
@@ -1109,23 +905,13 @@ if (!/[A-Za-z]/.test(address)) {
           >
             Search
           </button>
-
         </form>
 
-
         <div className="flex gap-2">
-
-          {[
-            'All',
-            'active',
-            'inactive',
-          ].map((status) => (
-
+          {['All', 'active', 'inactive'].map((status) => (
             <button
               key={status}
-              onClick={() =>
-                setSelectedStatus(status)
-              }
+              onClick={() => setSelectedStatus(status)}
               className={`rounded-xl px-3 py-2 text-xs font-bold capitalize ${
                 selectedStatus === status
                   ? 'bg-emerald-600 text-white'
@@ -1134,297 +920,183 @@ if (!/[A-Za-z]/.test(address)) {
             >
               {status}
             </button>
-
           ))}
-
         </div>
-
       </div>
 
-
-      {/* =================================================
-          EMPLOYEE TABLE
-      ================================================= */}
+      {/* EMPLOYEE TABLE */}
 
       {isLoading ? (
-
         <LoadingSpinner
           size="lg"
           text="Loading employee directory..."
           className="py-20"
         />
-
       ) : error ? (
-
-        <ErrorState
-          message={error}
-          onRetry={fetchEmployees}
-        />
-
+        <ErrorState message={error} onRetry={fetchEmployees} />
       ) : employees.length === 0 ? (
-
         <EmptyState
           title="No employees found"
           description="No employees match the current search or status filter."
           icon={Users}
         />
-
       ) : (
-
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-
           <div className="overflow-x-auto">
-
             <table className="w-full text-left text-xs text-slate-600">
-
               <thead className="border-b border-slate-100 bg-slate-50">
-
                 <tr>
-
                   <th className="px-5 py-4 font-bold uppercase tracking-wide text-slate-400">
                     Employee
                   </th>
-
                   <th className="px-5 py-4 font-bold uppercase tracking-wide text-slate-400">
                     Contact
                   </th>
-
                   <th className="px-5 py-4 font-bold uppercase tracking-wide text-slate-400">
                     Address
                   </th>
-
                   <th className="px-5 py-4 font-bold uppercase tracking-wide text-slate-400">
                     Collections
                   </th>
-
                   <th className="px-5 py-4 font-bold uppercase tracking-wide text-slate-400">
                     Total Waste
                   </th>
-
                   <th className="px-5 py-4 font-bold uppercase tracking-wide text-slate-400">
                     Status
                   </th>
-
                   <th className="px-5 py-4 text-right font-bold uppercase tracking-wide text-slate-400">
                     Actions
                   </th>
-
                 </tr>
-
               </thead>
 
-
               <tbody className="divide-y divide-slate-100">
+                {employees.map((employee) => (
+                  <tr
+                    key={employee._id}
+                    className="hover:bg-slate-50"
+                  >
+                    {/* Employee */}
 
-                {employees.map(
-                  (employee) => (
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-700">
+                          {employee.name.charAt(0).toUpperCase()}
+                        </div>
 
-                    <tr
-                      key={employee._id}
-                      className="hover:bg-slate-50"
+                        <div>
+                          <p className="font-bold text-slate-900">
+                            {employee.name}
+                          </p>
+
+                          <p className="text-[11px] text-slate-400">
+                            Joined {formatDate(employee.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Contact */}
+
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-slate-800">
+                        {employee.email}
+                      </p>
+
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        {employee.phone}
+                      </p>
+                    </td>
+
+                    {/* Address */}
+
+                    <td
+                      className="max-w-[180px] truncate px-5 py-4"
+                      title={employee.address}
                     >
+                      {employee.address}
+                    </td>
 
-                      {/* Employee */}
+                    {/* Collections */}
 
-                      <td className="px-5 py-4">
+                    <td className="px-5 py-4">
+                      <span className="font-bold text-slate-800">
+                        {employee.totalCollections || 0}
+                      </span>
+                    </td>
 
-                        <div className="flex items-center gap-3">
+                    {/* Total Waste */}
 
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-700">
-                            {employee.name
-                              .charAt(0)
-                              .toUpperCase()}
-                          </div>
+                    <td className="px-5 py-4">
+                      <span className="font-bold text-emerald-700">
+                        {Number(employee.totalQuantity || 0).toFixed(1)} kg
+                      </span>
+                    </td>
 
-                          <div>
+                    {/* Status */}
 
-                            <p className="font-bold text-slate-900">
-                              {employee.name}
-                            </p>
+                    <td className="px-5 py-4">
+                      <StatusBadge status={employee.status} size="sm" />
+                    </td>
 
-                            <p className="text-[11px] text-slate-400">
-                              Joined{' '}
-                              {formatDate(
-                                employee.createdAt
-                              )}
-                            </p>
+                    {/* Actions */}
 
-                          </div>
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleViewEmployee(employee)}
+                          title="View employee"
+                          className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
 
-                        </div>
+                        <button
+                          onClick={() => openEditForm(employee)}
+                          title="Edit employee"
+                          className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-blue-600 hover:bg-blue-100"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
 
-                      </td>
-
-
-                      {/* Contact */}
-
-                      <td className="px-5 py-4">
-
-                        <p className="font-medium text-slate-800">
-                          {employee.email}
-                        </p>
-
-                        <p className="mt-1 text-[11px] text-slate-400">
-                          {employee.phone}
-                        </p>
-
-                      </td>
-
-
-                      {/* Address */}
-
-                      <td
-                        className="max-w-[180px] truncate px-5 py-4"
-                        title={employee.address}
-                      >
-                        {employee.address}
-                      </td>
-
-
-                      {/* Collections */}
-
-                      <td className="px-5 py-4">
-
-                        <span className="font-bold text-slate-800">
-                          {employee.totalCollections ||
-                            0}
-                        </span>
-
-                      </td>
-
-
-                      {/* Total Waste */}
-
-                      <td className="px-5 py-4">
-
-                        <span className="font-bold text-emerald-700">
-                          {Number(
-                            employee.totalQuantity ||
-                              0
-                          ).toFixed(1)}{' '}
-                          kg
-                        </span>
-
-                      </td>
-
-
-                      {/* Status */}
-
-                      <td className="px-5 py-4">
-
-                        <StatusBadge
-                          status={
-                            employee.status
+                        <button
+                          onClick={() => setStatusTarget(employee)}
+                          title={
+                            employee.status === 'active'
+                              ? 'Deactivate employee'
+                              : 'Activate employee'
                           }
-                          size="sm"
-                        />
-
-                      </td>
-
-
-                      {/* Actions */}
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex justify-end gap-2">
-
-                          {/* View */}
-
-                          <button
-                            onClick={() =>
-                              handleViewEmployee(
-                                employee
-                              )
-                            }
-                            title="View employee"
-                            className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-
-
-                          {/* Edit Employee */}
-
-                          <button
-                            onClick={() =>
-                              openEditForm(
-                                employee
-                              )
-                            }
-                            title="Edit employee"
-                            className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-blue-600 hover:bg-blue-100"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-
-
-                          {/* Activate / Deactivate */}
-
-                          <button
-                            onClick={() =>
-                              setStatusTarget(
-                                employee
-                              )
-                            }
-                            title={
-                              employee.status ===
-                              'active'
-                                ? 'Deactivate employee'
-                                : 'Activate employee'
-                            }
-                            className={`rounded-lg border p-2 ${
-                              employee.status ===
-                              'active'
-                                ? 'border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100'
-                                : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            }`}
-                          >
-                            {employee.status ===
-                            'active' ? (
-                              <XCircle className="h-4 w-4" />
-                            ) : (
-                              <CheckCircle className="h-4 w-4" />
-                            )}
-                          </button>
-
-                        </div>
-
-                      </td>
-
-                    </tr>
-
-                  )
-                )}
-
+                          className={`rounded-lg border p-2 ${
+                            employee.status === 'active'
+                              ? 'border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100'
+                              : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          }`}
+                        >
+                          {employee.status === 'active' ? (
+                            <XCircle className="h-4 w-4" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
-
             </table>
-
           </div>
-
         </div>
-
       )}
 
-
-      {/* =================================================
-          ADD / EDIT EMPLOYEE MODAL
-      ================================================= */}
+      {/* ADD / EDIT EMPLOYEE MODAL */}
 
       {showForm && (
-
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white shadow-2xl">
-
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-
               <div>
-
                 <h2 className="text-xl font-bold text-slate-900">
-                  {editingEmployee
-                    ? 'Edit Employee'
-                    : 'Add Employee'}
+                  {editingEmployee ? 'Edit Employee' : 'Add Employee'}
                 </h2>
 
                 <p className="mt-1 text-xs text-slate-500">
@@ -1432,7 +1104,6 @@ if (!/[A-Za-z]/.test(address)) {
                     ? 'Update employee account information'
                     : 'Create a new employee account'}
                 </p>
-
               </div>
 
               <button
@@ -1441,15 +1112,9 @@ if (!/[A-Za-z]/.test(address)) {
               >
                 <X className="h-5 w-5" />
               </button>
-
             </div>
 
-
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5 p-6"
-            >
-
+            <form onSubmit={handleSubmit} className="space-y-5 p-6">
               {/* Employee Photo */}
 
               <div>
@@ -1500,11 +1165,9 @@ if (!/[A-Za-z]/.test(address)) {
                 </div>
               </div>
 
-
               {/* Name */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Full Name
                 </label>
@@ -1513,58 +1176,43 @@ if (!/[A-Za-z]/.test(address)) {
                   type="text"
                   value={form.name}
                   onChange={(e) =>
-                    handleFormChange(
-                      'name',
-                      e.target.value
-                    )
+                    handleFormChange('name', e.target.value)
                   }
                   placeholder="Enter full name"
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
-
               </div>
-
 
               {/* Email */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Email Address
                 </label>
 
                 <div className="relative">
-
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
                   <input
                     type="email"
                     value={form.email}
                     onChange={(e) =>
-                      handleFormChange(
-                        'email',
-                        e.target.value
-                      )
+                      handleFormChange('email', e.target.value)
                     }
                     placeholder="employee@example.com"
                     className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                   />
-
                 </div>
-
               </div>
-
 
               {/* Phone */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Phone Number
                 </label>
 
                 <div className="flex">
-
                   <div className="flex items-center rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700">
                     +91
                   </div>
@@ -1575,28 +1223,21 @@ if (!/[A-Za-z]/.test(address)) {
                     maxLength={10}
                     value={form.phone}
                     onChange={(e) =>
-                      handleFormChange(
-                        'phone',
-                        e.target.value
-                      )
+                      handleFormChange('phone', e.target.value)
                     }
                     placeholder="9876543210"
                     className="w-full rounded-r-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                   />
-
                 </div>
 
                 <p className="mt-1 text-[11px] text-slate-400">
                   Enter exactly 10 digits
                 </p>
-
               </div>
-
 
               {/* Address */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Address
                 </label>
@@ -1604,25 +1245,18 @@ if (!/[A-Za-z]/.test(address)) {
                 <textarea
                   value={form.address}
                   onChange={(e) =>
-                    handleFormChange(
-                      'address',
-                      e.target.value
-                    )
+                    handleFormChange('address', e.target.value)
                   }
                   placeholder="Enter employee address"
                   rows={3}
                   className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
-
               </div>
-
 
               {/* Password */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
-
                   Password
 
                   {editingEmployee && (
@@ -1630,21 +1264,16 @@ if (!/[A-Za-z]/.test(address)) {
                       Leave empty to keep current password
                     </span>
                   )}
-
                 </label>
 
                 <div className="relative">
-
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
                   <input
                     type="password"
                     value={form.password}
                     onChange={(e) =>
-                      handleFormChange(
-                        'password',
-                        e.target.value
-                      )
+                      handleFormChange('password', e.target.value)
                     }
                     placeholder={
                       editingEmployee
@@ -1653,16 +1282,12 @@ if (!/[A-Za-z]/.test(address)) {
                     }
                     className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                   />
-
                 </div>
-
               </div>
-
 
               {/* Buttons */}
 
               <div className="flex justify-end gap-3 pt-2">
-
                 <button
                   type="button"
                   onClick={closeForm}
@@ -1683,35 +1308,21 @@ if (!/[A-Za-z]/.test(address)) {
                     ? 'Save Changes'
                     : 'Create Employee'}
                 </button>
-
               </div>
-
             </form>
-
           </div>
-
         </div>
-
       )}
 
+      {/* EMPLOYEE DETAILS MODAL */}
 
-      {/* =================================================
-          EMPLOYEE DETAILS MODAL
-      ================================================= */}
-
-      {(selectedEmployee ||
-        isDetailsLoading) && (
-
+      {(selectedEmployee || isDetailsLoading) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-
           <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
-
             {/* Header */}
 
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-
               <div>
-
                 <h2 className="text-xl font-bold text-slate-900">
                   Employee Details
                 </h2>
@@ -1719,42 +1330,28 @@ if (!/[A-Za-z]/.test(address)) {
                 <p className="mt-1 text-xs text-slate-500">
                   Employee profile and collection history
                 </p>
-
               </div>
 
               <button
-                onClick={() =>
-                  setSelectedEmployee(null)
-                }
+                onClick={() => setSelectedEmployee(null)}
                 className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"
               >
                 <X className="h-5 w-5" />
               </button>
-
             </div>
 
-
             {isDetailsLoading ? (
-
               <LoadingSpinner
                 size="lg"
                 text="Loading employee details..."
                 className="py-20"
               />
-
             ) : selectedEmployee ? (
-
               <div className="space-y-6 p-6">
-
-
-                {/* =================================================
-                    PROFILE
-                ================================================= */}
+                {/* PROFILE */}
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-
                   <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-
                     <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-emerald-100">
                       {selectedEmployee.profilePhoto ? (
                         <img
@@ -1764,34 +1361,24 @@ if (!/[A-Za-z]/.test(address)) {
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-xl font-bold text-emerald-700">
-                          {selectedEmployee.name
-                            .charAt(0)
-                            .toUpperCase()}
+                          {selectedEmployee.name.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
 
-
                     <div className="flex-1">
-
                       <div className="flex flex-wrap items-center gap-3">
-
                         <h3 className="text-xl font-bold text-slate-900">
                           {selectedEmployee.name}
                         </h3>
 
                         <StatusBadge
-                          status={
-                            selectedEmployee.status
-                          }
+                          status={selectedEmployee.status}
                           size="sm"
                         />
-
                       </div>
 
-
                       <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-slate-400" />
                           {selectedEmployee.email}
@@ -1809,90 +1396,57 @@ if (!/[A-Za-z]/.test(address)) {
 
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-slate-400" />
-                          Joined{' '}
-                          {formatDate(
-                            selectedEmployee.createdAt
-                          )}
+                          Joined {formatDate(selectedEmployee.createdAt)}
                         </div>
-
                       </div>
-
                     </div>
-
                   </div>
-
                 </div>
 
-
-                {/* =================================================
-                    COLLECTION SUMMARY
-                ================================================= */}
+                {/* COLLECTION SUMMARY */}
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
                   <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
-
                     <div className="flex items-center justify-between">
-
                       <div>
-
                         <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
                           Total Waste Collected
                         </p>
 
                         <p className="mt-2 text-3xl font-extrabold text-emerald-800">
                           {Number(
-                            selectedEmployee.totalQuantity ||
-                              0
+                            selectedEmployee.totalQuantity || 0
                           ).toFixed(1)}{' '}
                           kg
                         </p>
-
                       </div>
 
                       <Scale className="h-8 w-8 text-emerald-600" />
-
                     </div>
-
                   </div>
 
-
                   <div className="rounded-2xl border border-slate-200 bg-white p-5">
-
                     <div className="flex items-center justify-between">
-
                       <div>
-
                         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                           Collection Records
                         </p>
 
                         <p className="mt-2 text-3xl font-extrabold text-slate-900">
-                          {selectedEmployee.totalCollections ||
-                            0}
+                          {selectedEmployee.totalCollections || 0}
                         </p>
-
                       </div>
 
                       <ClipboardList className="h-8 w-8 text-slate-500" />
-
                     </div>
-
                   </div>
-
                 </div>
 
-
-                {/* =================================================
-                    COLLECTION HISTORY
-                ================================================= */}
+                {/* COLLECTION HISTORY */}
 
                 <div className="rounded-2xl border border-slate-200 bg-white">
-
                   <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-
                     <div>
-
                       <h3 className="font-bold text-slate-900">
                         Collection History
                       </h3>
@@ -1900,150 +1454,99 @@ if (!/[A-Za-z]/.test(address)) {
                       <p className="mt-1 text-xs text-slate-500">
                         Admin can edit or delete collection records
                       </p>
-
                     </div>
-
                   </div>
 
-
                   {!selectedEmployee.collections ||
-                  selectedEmployee.collections.length ===
-                    0 ? (
-
+                  selectedEmployee.collections.length === 0 ? (
                     <div className="p-10 text-center text-sm text-slate-500">
                       No collection records found.
                     </div>
-
                   ) : (
-
                     <div className="overflow-x-auto">
-
                       <table className="w-full text-left text-xs">
-
                         <thead className="bg-slate-50 text-slate-400">
-
                           <tr>
-
                             <th className="px-5 py-3 font-bold">
                               Type
                             </th>
-
                             <th className="px-5 py-3 font-bold">
                               Location
                             </th>
-
                             <th className="px-5 py-3 font-bold">
                               Waste
                             </th>
-
                             <th className="px-5 py-3 font-bold">
                               Quantity
                             </th>
-
                             <th className="px-5 py-3 font-bold">
                               Date
                             </th>
-
                             <th className="px-5 py-3 font-bold">
                               Status
                             </th>
-
                             <th className="px-5 py-3 font-bold">
                               Remarks
                             </th>
-
                             <th className="px-5 py-3 text-right font-bold">
                               Actions
                             </th>
-
                           </tr>
-
                         </thead>
 
-
                         <tbody className="divide-y divide-slate-100">
-
                           {selectedEmployee.collections.map(
                             (collection) => (
-
                               <tr
-                                key={
-                                  collection._id
-                                }
+                                key={collection._id}
                                 className="hover:bg-slate-50"
                               >
-
                                 <td className="px-5 py-3 font-semibold capitalize">
                                   {collection.collectionType}
                                 </td>
-
 
                                 <td className="px-5 py-3">
                                   {collection.locationName}
                                 </td>
 
-
                                 <td className="px-5 py-3">
                                   {collection.wasteType}
                                 </td>
 
-
                                 <td className="px-5 py-3 font-bold text-emerald-700">
-                                  {Number(
-                                    collection.quantity ||
-                                      0
-                                  ).toFixed(1)}{' '}
+                                  {Number(collection.quantity || 0).toFixed(1)}{' '}
                                   kg
                                 </td>
 
-
                                 <td className="px-5 py-3">
-                                  {formatDate(
-                                    collection.collectionDate
-                                  )}
+                                  {formatDate(collection.collectionDate)}
                                 </td>
 
-
                                 <td className="px-5 py-3">
-
                                   {collection.collected ? (
-
                                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 font-bold text-emerald-700">
                                       <CheckCircle className="h-3 w-3" />
                                       Collected
                                     </span>
-
                                   ) : (
-
                                     <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 font-bold text-rose-700">
                                       <XCircle className="h-3 w-3" />
                                       Not Collected
                                     </span>
-
                                   )}
-
                                 </td>
-
 
                                 <td className="max-w-[180px] truncate px-5 py-3">
-                                  {collection.remarks ||
-                                    '-'}
+                                  {collection.remarks || '-'}
                                 </td>
-
 
                                 {/* Collection Actions */}
 
                                 <td className="px-5 py-3">
-
                                   <div className="flex justify-end gap-2">
-
-                                    {/* Edit Collection */}
-
                                     <button
                                       onClick={() =>
-                                        openEditCollectionForm(
-                                          collection
-                                        )
+                                        openEditCollectionForm(collection)
                                       }
                                       title="Edit collection"
                                       className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-blue-600 hover:bg-blue-100"
@@ -2051,67 +1554,40 @@ if (!/[A-Za-z]/.test(address)) {
                                       <Pencil className="h-4 w-4" />
                                     </button>
 
-
-                                    {/* Delete Collection */}
-
                                     <button
                                       onClick={() =>
-                                        setCollectionDeleteTarget(
-                                          collection
-                                        )
+                                        setCollectionDeleteTarget(collection)
                                       }
                                       title="Delete collection"
                                       className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-600 hover:bg-rose-100"
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </button>
-
                                   </div>
-
                                 </td>
-
                               </tr>
-
                             )
                           )}
-
                         </tbody>
-
                       </table>
-
                     </div>
-
                   )}
-
                 </div>
-
               </div>
-
             ) : null}
-
           </div>
-
         </div>
-
       )}
 
-
-      {/* =================================================
-          EDIT COLLECTION MODAL
-      ================================================= */}
+      {/* EDIT COLLECTION MODAL */}
 
       {showCollectionForm && (
-
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
-
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
-
             {/* Header */}
 
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-
               <div>
-
                 <h2 className="text-xl font-bold text-slate-900">
                   Edit Collection Record
                 </h2>
@@ -2119,7 +1595,6 @@ if (!/[A-Za-z]/.test(address)) {
                 <p className="mt-1 text-xs text-slate-500">
                   Admin can modify this employee collection
                 </p>
-
               </div>
 
               <button
@@ -2128,29 +1603,21 @@ if (!/[A-Za-z]/.test(address)) {
               >
                 <X className="h-5 w-5" />
               </button>
-
             </div>
 
-
             <form
-              onSubmit={
-                handleCollectionSubmit
-              }
+              onSubmit={handleCollectionSubmit}
               className="space-y-5 p-6"
             >
-
               {/* Collection Type */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Collection Type
                 </label>
 
                 <select
-                  value={
-                    collectionForm.collectionType
-                  }
+                  value={collectionForm.collectionType}
                   onChange={(e) =>
                     handleCollectionFormChange(
                       'collectionType',
@@ -2159,37 +1626,22 @@ if (!/[A-Za-z]/.test(address)) {
                   }
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 >
-
-                  <option value="house">
-                    House
-                  </option>
-
-                  <option value="industry">
-                    Industry
-                  </option>
-
-                  <option value="village">
-                    Village
-                  </option>
-
+                  <option value="house">House</option>
+                  <option value="industry">Industry</option>
+                  <option value="village">Village</option>
                 </select>
-
               </div>
-
 
               {/* Location */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Location
                 </label>
 
                 <input
                   type="text"
-                  value={
-                    collectionForm.locationName
-                  }
+                  value={collectionForm.locationName}
                   onChange={(e) =>
                     handleCollectionFormChange(
                       'locationName',
@@ -2199,23 +1651,18 @@ if (!/[A-Za-z]/.test(address)) {
                   placeholder="Enter location"
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
-
               </div>
-
 
               {/* Waste Type */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Waste Type
                 </label>
 
                 <input
                   type="text"
-                  value={
-                    collectionForm.wasteType
-                  }
+                  value={collectionForm.wasteType}
                   onChange={(e) =>
                     handleCollectionFormChange(
                       'wasteType',
@@ -2225,14 +1672,11 @@ if (!/[A-Za-z]/.test(address)) {
                   placeholder="Example: Organic Waste"
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
-
               </div>
-
 
               {/* Quantity */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Quantity (kg)
                 </label>
@@ -2241,9 +1685,7 @@ if (!/[A-Za-z]/.test(address)) {
                   type="number"
                   min="0"
                   step="0.1"
-                  value={
-                    collectionForm.quantity
-                  }
+                  value={collectionForm.quantity}
                   onChange={(e) =>
                     handleCollectionFormChange(
                       'quantity',
@@ -2251,32 +1693,25 @@ if (!/[A-Za-z]/.test(address)) {
                     )
                   }
                   placeholder="Example: 45"
-                  disabled={
-                    !collectionForm.collected
-                  }
+                  disabled={!collectionForm.collected}
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none disabled:bg-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
 
                 <p className="mt-1 text-[11px] text-slate-400">
                   Quantity is stored as a number and displayed in kg.
                 </p>
-
               </div>
-
 
               {/* Date */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Collection Date
                 </label>
 
                 <input
                   type="date"
-                  value={
-                    collectionForm.collectionDate
-                  }
+                  value={collectionForm.collectionDate}
                   onChange={(e) =>
                     handleCollectionFormChange(
                       'collectionDate',
@@ -2285,21 +1720,15 @@ if (!/[A-Za-z]/.test(address)) {
                   }
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
-
               </div>
-
 
               {/* Collected */}
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-
                 <label className="flex cursor-pointer items-center gap-3">
-
                   <input
                     type="checkbox"
-                    checked={
-                      collectionForm.collected
-                    }
+                    checked={collectionForm.collected}
                     onChange={(e) =>
                       handleCollectionFormChange(
                         'collected',
@@ -2310,7 +1739,6 @@ if (!/[A-Za-z]/.test(address)) {
                   />
 
                   <div>
-
                     <p className="text-sm font-bold text-slate-800">
                       Waste Collected
                     </p>
@@ -2318,50 +1746,38 @@ if (!/[A-Za-z]/.test(address)) {
                     <p className="text-xs text-slate-500">
                       Enable this when the waste was actually collected.
                     </p>
-
                   </div>
-
                 </label>
-
               </div>
-
 
               {/* Remarks */}
 
               <div>
-
                 <label className="mb-1.5 block text-xs font-bold text-slate-700">
                   Remarks
                 </label>
 
                 <textarea
-                  rows={3}
-                  value={
-                    collectionForm.remarks
-                  }
+                  value={collectionForm.remarks}
                   onChange={(e) =>
                     handleCollectionFormChange(
                       'remarks',
                       e.target.value
                     )
                   }
-                  placeholder="Enter remarks"
+                  placeholder="Enter remarks (optional)"
+                  rows={3}
                   className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
-
               </div>
-
 
               {/* Buttons */}
 
               <div className="flex justify-end gap-3 pt-2">
-
                 <button
                   type="button"
                   onClick={closeCollectionForm}
-                  disabled={
-                    isSavingCollection
-                  }
+                  disabled={isSavingCollection}
                   className="rounded-xl border border-slate-200 px-5 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
                 >
                   Cancel
@@ -2369,106 +1785,73 @@ if (!/[A-Za-z]/.test(address)) {
 
                 <button
                   type="submit"
-                  disabled={
-                    isSavingCollection
-                  }
+                  disabled={isSavingCollection}
                   className="rounded-xl bg-emerald-600 px-5 py-3 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {isSavingCollection
-                    ? 'Saving...'
-                    : 'Save Collection'}
+                  {isSavingCollection ? 'Saving...' : 'Save Collection'}
                 </button>
-
               </div>
-
             </form>
-
           </div>
-
         </div>
-
       )}
 
-
-      {/* =================================================
-          DELETE COLLECTION CONFIRMATION
-      ================================================= */}
+      {/* DELETE COLLECTION CONFIRMATION */}
 
       <ConfirmDialog
-        isOpen={
-          !!collectionDeleteTarget
-        }
-        onClose={() =>
-          setCollectionDeleteTarget(
-            null
-          )
-        }
-        onConfirm={
-          handleDeleteCollection
-        }
+        isOpen={!!collectionDeleteTarget}
+        onClose={() => {
+          if (!isDeletingCollection) {
+            setCollectionDeleteTarget(null);
+          }
+        }}
+        onConfirm={handleDeleteCollection}
         title="Delete Collection Record"
         message={
           collectionDeleteTarget
-            ? `Are you sure you want to delete the collection record for ${collectionDeleteTarget.locationName}? This will also reduce the employee's total collected waste.`
+            ? `Are you sure you want to delete the collection record for "${collectionDeleteTarget.locationName}"? This action cannot be undone.`
             : ''
         }
         confirmText="Delete"
         variant="danger"
-        isLoading={
-          isDeletingCollection
-        }
+        isLoading={isDeletingCollection}
       />
 
-
-      {/* =================================================
-          EMPLOYEE STATUS CONFIRMATION
-      ================================================= */}
+      {/* ACTIVATE / DEACTIVATE CONFIRMATION */}
 
       <ConfirmDialog
         isOpen={!!statusTarget}
-        onClose={() =>
-          setStatusTarget(null)
-        }
-        onConfirm={
-          handleToggleStatus
-        }
+        onClose={() => {
+          if (!isUpdatingStatus) {
+            setStatusTarget(null);
+          }
+        }}
+        onConfirm={handleToggleStatus}
         title={
-          statusTarget?.status ===
-          'active'
+          statusTarget?.status === 'active'
             ? 'Deactivate Employee'
             : 'Activate Employee'
         }
         message={
           statusTarget
             ? `Are you sure you want to ${
-                statusTarget.status ===
-                'active'
+                statusTarget.status === 'active'
                   ? 'deactivate'
                   : 'activate'
               } ${statusTarget.name}'s employee account?`
             : ''
         }
         confirmText={
-          statusTarget?.status ===
-          'active'
+          statusTarget?.status === 'active'
             ? 'Deactivate'
             : 'Activate'
         }
-        variant={
-          statusTarget?.status ===
-          'active'
-            ? 'danger'
-            : 'primary'
-        }
-        isLoading={
-          isUpdatingStatus
-        }
+        variant={statusTarget?.status === 'active' ? 'danger' : 'primary'}
+        isLoading={isUpdatingStatus}
       />
-
     </div>
   );
 };
-
 
 // =====================================================
 // SUMMARY CARD
@@ -2480,42 +1863,28 @@ interface SummaryCardProps {
   icon: React.ElementType;
 }
 
-
-const SummaryCard: React.FC<
-  SummaryCardProps
-> = ({
+const SummaryCard: React.FC<SummaryCardProps> = ({
   title,
   value,
   icon: Icon,
 }) => {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
       <div className="flex items-center justify-between">
-
         <div>
-
-          <p className="text-xs font-bold text-slate-400">
-            {title}
-          </p>
+          <p className="text-xs font-bold text-slate-400">{title}</p>
 
           <p className="mt-2 text-2xl font-extrabold text-slate-900">
             {value}
           </p>
-
         </div>
 
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-
           <Icon className="h-5 w-5" />
-
         </div>
-
       </div>
-
     </div>
   );
 };
-
 
 export default AdminEmployees;

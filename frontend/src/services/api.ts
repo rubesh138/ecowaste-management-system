@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 
+// Production backend API URL
 const API_BASE_URL =
-  (import.meta as any).env?.VITE_API_URL ||
   'https://ecowaste-management-system.onrender.com/api';
 
 export const api = axios.create({
@@ -25,7 +25,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response error handler interceptor
+// Response error handler
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ message?: string }>) => {
@@ -50,7 +50,9 @@ api.interceptors.response.use(
       }
 
       return Promise.reject(new Error(message));
-    } else if (error.request) {
+    }
+
+    if (error.request) {
       return Promise.reject(
         new Error(
           'Cannot connect to the server. Please ensure the backend is running.'

@@ -2,6 +2,7 @@ export interface User {
   _id: string;
   name: string;
   email: string;
+  profilePhoto?: string;
   phone: string;
   address: string;
   role: 'citizen' | 'admin' | 'employee';
@@ -13,7 +14,14 @@ export interface User {
   totalComplaints?: number;
 }
 
-export type WasteStatus = 'Pending' | 'Under Review' | 'Accepted' | 'Scheduled' | 'Collected' | 'Completed' | 'Rejected';
+export type WasteStatus =
+  | 'Pending'
+  | 'Under Review'
+  | 'Accepted'
+  | 'Scheduled'
+  | 'Collected'
+  | 'Completed'
+  | 'Rejected';
 
 export interface WasteRequest {
   _id: string;
@@ -36,7 +44,12 @@ export interface WasteRequest {
   updatedAt: string;
 }
 
-export type ComplaintStatus = 'Pending' | 'In Progress' | 'Resolved' | 'Rejected';
+export type ComplaintStatus =
+  | 'Pending'
+  | 'In Progress'
+  | 'Resolved'
+  | 'Rejected';
+
 export type ComplaintCategory =
   | 'Missed Collection'
   | 'Improper Collection'
@@ -59,7 +72,11 @@ export interface Complaint {
   updatedAt: string;
 }
 
-export type RecyclingStatus = 'Received' | 'Processing' | 'Recycled' | 'Rejected';
+export type RecyclingStatus =
+  | 'Received'
+  | 'Processing'
+  | 'Recycled'
+  | 'Rejected';
 
 export interface RecyclingRecord {
   _id: string;

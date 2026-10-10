@@ -4,10 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import { LoadingSpinner } from './common/LoadingSpinner';
 
 interface ProtectedRouteProps {
-  allowedRoles?: ('citizen' | 'admin')[];
+  allowedRoles?: ('citizen' | 'admin' | 'employee')[];
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  allowedRoles,
+}) => {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {

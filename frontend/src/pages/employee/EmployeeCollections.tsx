@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Truck,
   Home,
@@ -13,7 +12,10 @@ import {
   Phone,
   PackageCheck,
   Clock,
+  RefreshCw,
 } from 'lucide-react';
+
+import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/common/Toast';
 
@@ -64,116 +66,120 @@ export const EmployeeCollections: React.FC = () => {
 
   const [collections, setCollections] = useState<Collection[]>([]);
   const [assignedRequests, setAssignedRequests] = useState<AssignedRequest[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [error, setError] = useState('');
   const [requestError, setRequestError] = useState('');
   const [collectingId, setCollectingId] = useState<string | null>(null);
 
-  const fetchCollections = async () => {
+  const fetchCollections = useCallback(async () => {
     try {
-      const response = await axios.get(
-        'http://localhost:5000/api/collections/my',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.get('/collections/my');
+      const data = response.data?.data;
 
-      setCollections(response.data.data || []);
+      setCollections(Array.isArray(data) ? data : []);
       setError('');
     } catch (err: any) {
       console.error('Error fetching collections:', err);
+
       setError(
         err.response?.data?.message ||
+          err.message ||
           'Unable to load collection records'
       );
     }
-  };
+  }, []);
 
-  const fetchAssignedRequests = async () => {
+  const fetchAssignedRequests = useCallback(async () => {
     try {
       setRequestsLoading(true);
+      setRequestError('');
 
-      const response = await axios.get(
-        'http://localhost:5000/api/requests',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const response = await api.get('/requests');
+      const requests = response.data?.data;
+
+      if (!Array.isArray(requests)) {
+        throw new Error('The server returned an invalid requests response.');
+      }
+
+      // The backend filters requests by the logged-in employee.
+      // Keep only assigned requests that are ready for collection.
+      const filteredRequests = requests.filter(
+        (request: AssignedRequest) => {
+          const hasEmployeeAssignment = Boolean(request.assignedEmployee);
+
+          return (
+            hasEmployeeAssignment &&
+            ['Accepted', 'Scheduled'].includes(request.status)
+          );
         }
       );
 
-      const requests = response.data.data || [];
-
-      setAssignedRequests(
-        requests.filter((request: AssignedRequest) =>
-          ['Accepted', 'Scheduled'].includes(request.status)
-        )
-      );
-
-      setRequestError('');
+      setAssignedRequests(filteredRequests);
     } catch (err: any) {
       console.error('Error fetching assigned requests:', err);
+
       setRequestError(
         err.response?.data?.message ||
+          err.message ||
           'Unable to load assigned requests'
       );
+
+      setAssignedRequests([]);
     } finally {
       setRequestsLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    if (!token) return;
+  const refreshData = useCallback(async () => {
+    setLoading(true);
 
-    const loadData = async () => {
-      setLoading(true);
+    try {
       await Promise.all([
         fetchCollections(),
         fetchAssignedRequests(),
       ]);
+    } finally {
       setLoading(false);
-    };
+    }
+  }, [fetchCollections, fetchAssignedRequests]);
 
-    loadData();
-  }, [token]);
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      setRequestsLoading(false);
+      setRequestError('Please log in again to view your assigned requests.');
+      return;
+    }
+
+    void refreshData();
+  }, [token, refreshData]);
 
   const handleMarkCollected = async (request: AssignedRequest) => {
+    const confirmed = window.confirm(
+      `Mark request ${request.requestId} as collected?`
+    );
+
+    if (!confirmed) return;
+
     try {
       setCollectingId(request._id);
 
-      /*
-       * This endpoint will be added in the backend next:
-       * PUT /api/requests/:id/collect
-       *
-       * It will automatically create the Collection record,
-       * increase recycling inventory, and mark the request Collected.
-       */
-      await axios.put(
-        `http://localhost:5000/api/requests/${request._id}/collect`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      await api.put(`/requests/${request._id}/collect`, {});
 
       showToast(
         `${request.requestId} marked as collected successfully.`,
         'success'
       );
 
-      await Promise.all([
-        fetchAssignedRequests(),
-        fetchCollections(),
-      ]);
+      await refreshData();
     } catch (err: any) {
       console.error('Error marking request collected:', err);
+
       showToast(
         err.response?.data?.message ||
+          err.message ||
           'Unable to mark request as collected',
         'error'
       );
@@ -184,61 +190,33 @@ export const EmployeeCollections: React.FC = () => {
 
   const totalCollected = collections
     .filter((item) => item.collected)
-    .reduce(
-      (total, item) => total + Number(item.quantity || 0),
-      0
-    );
+    .reduce((total, item) => total + Number(item.quantity || 0), 0);
 
   const houseTotal = collections
     .filter(
-      (item) =>
-        item.collected &&
-        item.collectionType === 'house'
+      (item) => item.collected && item.collectionType === 'house'
     )
-    .reduce(
-      (total, item) => total + Number(item.quantity || 0),
-      0
-    );
+    .reduce((total, item) => total + Number(item.quantity || 0), 0);
 
   const industryTotal = collections
     .filter(
-      (item) =>
-        item.collected &&
-        item.collectionType === 'industry'
+      (item) => item.collected && item.collectionType === 'industry'
     )
-    .reduce(
-      (total, item) => total + Number(item.quantity || 0),
-      0
-    );
+    .reduce((total, item) => total + Number(item.quantity || 0), 0);
 
   const villageTotal = collections
     .filter(
-      (item) =>
-        item.collected &&
-        item.collectionType === 'village'
+      (item) => item.collected && item.collectionType === 'village'
     )
-    .reduce(
-      (total, item) => total + Number(item.quantity || 0),
-      0
-    );
+    .reduce((total, item) => total + Number(item.quantity || 0), 0);
 
-  const getTypeIcon = (
-    type: Collection['collectionType']
-  ) => {
-    if (type === 'house') {
-      return <Home className="h-5 w-5" />;
-    }
-
-    if (type === 'industry') {
-      return <Factory className="h-5 w-5" />;
-    }
-
+  const getTypeIcon = (type: Collection['collectionType']) => {
+    if (type === 'house') return <Home className="h-5 w-5" />;
+    if (type === 'industry') return <Factory className="h-5 w-5" />;
     return <MapPin className="h-5 w-5" />;
   };
 
-  const getTypeName = (
-    type: Collection['collectionType']
-  ) => {
+  const getTypeName = (type: Collection['collectionType']) => {
     if (type === 'house') return 'House';
     if (type === 'industry') return 'Industry';
     return 'Village';
@@ -247,44 +225,57 @@ export const EmployeeCollections: React.FC = () => {
   const formatDate = (date?: string) => {
     if (!date) return 'Not scheduled';
 
-    return new Date(date).toLocaleDateString(
-      'en-IN',
-      {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }
-    );
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return 'Date unavailable';
+    }
+
+    return parsedDate.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   return (
     <div className="space-y-6">
-
       {/* Header */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-            <Truck className="h-7 w-7" />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+              <Truck className="h-7 w-7" />
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">
+                My Collections
+              </h1>
+              <p className="mt-1 text-sm text-slate-500">
+                View assigned pickups and your recorded waste collection history
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              My Collections
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              View assigned pickups and your recorded waste collection history
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={() => void refreshData()}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
       </div>
 
       {/* Assigned Requests */}
-      <div className="rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">
-
+      <div className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
         <div className="border-b border-amber-100 bg-amber-50 px-6 py-4">
           <div className="flex items-center gap-3">
             <PackageCheck className="h-6 w-6 text-amber-700" />
+
             <div>
               <h2 className="text-lg font-bold text-slate-900">
                 Assigned Pickup Requests
@@ -297,18 +288,22 @@ export const EmployeeCollections: React.FC = () => {
         </div>
 
         {requestsLoading && (
-          <div className="p-10 text-center">
-            <p className="text-sm text-slate-500">
-              Loading assigned requests...
-            </p>
+          <div className="p-10 text-center text-sm text-slate-500">
+            Loading assigned requests...
           </div>
         )}
 
         {!requestsLoading && requestError && (
-          <div className="p-10 text-center">
-            <p className="text-sm text-rose-600">
-              {requestError}
-            </p>
+          <div className="p-8 text-center">
+            <p className="text-sm text-rose-600">{requestError}</p>
+
+            <button
+              type="button"
+              onClick={() => void fetchAssignedRequests()}
+              className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              Try Again
+            </button>
           </div>
         )}
 
@@ -317,11 +312,14 @@ export const EmployeeCollections: React.FC = () => {
           assignedRequests.length === 0 && (
             <div className="p-10 text-center">
               <Truck className="mx-auto h-10 w-10 text-slate-300" />
+
               <p className="mt-3 text-sm font-semibold text-slate-600">
                 No pickup requests assigned
               </p>
+
               <p className="mt-1 text-xs text-slate-400">
-                New requests assigned by Admin will appear here.
+                Requests assigned by Admin will appear here after they are
+                accepted or scheduled.
               </p>
             </div>
           )}
@@ -339,13 +337,10 @@ export const EmployeeCollections: React.FC = () => {
                 return (
                   <div
                     key={request._id}
-                    className="p-6 hover:bg-slate-50 transition-colors"
+                    className="p-6 transition-colors hover:bg-slate-50"
                   >
                     <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-
-                      {/* Request information */}
                       <div className="flex-1 space-y-4">
-
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="rounded-lg bg-slate-900 px-3 py-1.5 font-mono text-xs font-bold text-white">
                             {request.requestId}
@@ -357,11 +352,11 @@ export const EmployeeCollections: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                               Citizen
                             </p>
+
                             <div className="mt-1 flex items-center gap-2">
                               <User className="h-4 w-4 text-slate-400" />
                               <span className="text-sm font-bold text-slate-900">
@@ -374,9 +369,10 @@ export const EmployeeCollections: React.FC = () => {
                             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                               Contact
                             </p>
+
                             <div className="mt-1 flex items-center gap-2">
                               <Phone className="h-4 w-4 text-slate-400" />
-                              <span className="text-sm font-medium text-slate-700">
+                              <span className="break-all text-sm text-slate-700">
                                 {citizen?.phone ||
                                   citizen?.email ||
                                   'Not available'}
@@ -388,12 +384,15 @@ export const EmployeeCollections: React.FC = () => {
                             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                               Waste & Quantity
                             </p>
+
                             <div className="mt-1 flex items-center gap-2">
                               <Scale className="h-4 w-4 text-slate-400" />
                               <span className="text-sm font-bold text-slate-900">
                                 {request.wasteType} —{' '}
                                 {request.quantity ||
-                                  `${request.quantityValue || 0} ${request.unit || 'kg'}`}
+                                  `${request.quantityValue || 0} ${
+                                    request.unit || 'kg'
+                                  }`}
                               </span>
                             </div>
                           </div>
@@ -402,9 +401,10 @@ export const EmployeeCollections: React.FC = () => {
                             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                               Pickup Date
                             </p>
+
                             <div className="mt-1 flex items-center gap-2">
                               <Calendar className="h-4 w-4 text-slate-400" />
-                              <span className="text-sm font-medium text-slate-700">
+                              <span className="text-sm text-slate-700">
                                 {formatDate(
                                   request.scheduledDate ||
                                     request.preferredDate
@@ -412,7 +412,6 @@ export const EmployeeCollections: React.FC = () => {
                               </span>
                             </div>
                           </div>
-
                         </div>
 
                         <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
@@ -440,15 +439,15 @@ export const EmployeeCollections: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Collection action */}
                       <div className="xl:w-52 xl:border-l xl:border-slate-100 xl:pl-6">
                         <div className="mb-3 flex items-center gap-2 text-xs text-slate-500">
-                          <Clock className="h-4 w-4" />
-                          <span>Go to the address and collect the waste</span>
+                          <Clock className="h-4 w-4 shrink-0" />
+                          <span>Collect the waste at the listed address.</span>
                         </div>
 
                         <button
-                          onClick={() => handleMarkCollected(request)}
+                          type="button"
+                          onClick={() => void handleMarkCollected(request)}
                           disabled={collectingId === request._id}
                           className="w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -458,10 +457,9 @@ export const EmployeeCollections: React.FC = () => {
                         </button>
 
                         <p className="mt-2 text-center text-[10px] text-slate-400">
-                          This will automatically create the collection record.
+                          This records the collection in the system.
                         </p>
                       </div>
-
                     </div>
                   </div>
                 );
@@ -472,7 +470,6 @@ export const EmployeeCollections: React.FC = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-emerald-700">
@@ -480,212 +477,166 @@ export const EmployeeCollections: React.FC = () => {
             </p>
             <Scale className="h-5 w-5 text-emerald-600" />
           </div>
-
           <p className="mt-3 text-3xl font-bold text-emerald-800">
             {totalCollected.toFixed(1)} kg
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm font-semibold text-slate-500">
-            House
-          </p>
-
+          <p className="text-sm font-semibold text-slate-500">House</p>
           <p className="mt-3 text-2xl font-bold text-slate-900">
             {houseTotal.toFixed(1)} kg
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm font-semibold text-slate-500">
-            Industry
-          </p>
-
+          <p className="text-sm font-semibold text-slate-500">Industry</p>
           <p className="mt-3 text-2xl font-bold text-slate-900">
             {industryTotal.toFixed(1)} kg
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm font-semibold text-slate-500">
-            Village
-          </p>
-
+          <p className="text-sm font-semibold text-slate-500">Village</p>
           <p className="mt-3 text-2xl font-bold text-slate-900">
             {villageTotal.toFixed(1)} kg
           </p>
         </div>
-
       </div>
 
-      {/* Collection Records */}
+      {/* Collection History */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-
         <div className="border-b border-slate-100 px-6 py-4">
           <h2 className="text-lg font-bold text-slate-900">
             Collection History
           </h2>
-
           <p className="mt-1 text-sm text-slate-500">
             All collection records submitted by you
           </p>
         </div>
 
         {loading && (
-          <div className="p-10 text-center">
-            <p className="text-sm text-slate-500">
-              Loading collection records...
-            </p>
+          <div className="p-10 text-center text-sm text-slate-500">
+            Loading collection records...
           </div>
         )}
 
         {!loading && error && (
+          <div className="p-8 text-center">
+            <p className="text-sm text-rose-600">{error}</p>
+            <button
+              type="button"
+              onClick={() => void refreshData()}
+              className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && collections.length === 0 && (
           <div className="p-10 text-center">
-            <p className="text-sm text-rose-600">
-              {error}
+            <Truck className="mx-auto h-10 w-10 text-slate-300" />
+            <p className="mt-3 text-sm font-semibold text-slate-600">
+              No collection records yet
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Collection records will appear here after you complete a pickup.
             </p>
           </div>
         )}
 
-        {!loading &&
-          !error &&
-          collections.length === 0 && (
-            <div className="p-10 text-center">
-              <Truck className="mx-auto h-10 w-10 text-slate-300" />
+        {!loading && !error && collections.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Type
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Location
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Waste Type
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Quantity
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Date
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Status
+                  </th>
+                </tr>
+              </thead>
 
-              <p className="mt-3 text-sm font-semibold text-slate-600">
-                No collection records yet
-              </p>
-
-              <p className="mt-1 text-xs text-slate-400">
-                Assigned requests will automatically appear here after collection.
-              </p>
-            </div>
-          )}
-
-        {!loading &&
-          !error &&
-          collections.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Type
-                    </th>
-
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Location
-                    </th>
-
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Waste Type
-                    </th>
-
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Quantity
-                    </th>
-
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Date
-                    </th>
-
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-100">
-
-                  {collections.map((collection) => (
-                    <tr
-                      key={collection._id}
-                      className="hover:bg-slate-50"
-                    >
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                            {getTypeIcon(
-                              collection.collectionType
-                            )}
-                          </div>
-
-                          <span className="text-sm font-semibold text-slate-800">
-                            {getTypeName(
-                              collection.collectionType
-                            )}
-                          </span>
+              <tbody className="divide-y divide-slate-100">
+                {collections.map((collection) => (
+                  <tr
+                    key={collection._id}
+                    className="hover:bg-slate-50"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                          {getTypeIcon(collection.collectionType)}
                         </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-slate-400" />
-
-                          <span className="text-sm text-slate-700">
-                            {collection.locationName}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-slate-700">
-                          {collection.wasteType}
+                        <span className="text-sm font-semibold text-slate-800">
+                          {getTypeName(collection.collectionType)}
                         </span>
-                      </td>
+                      </div>
+                    </td>
 
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Scale className="h-4 w-4 text-slate-400" />
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-slate-400" />
+                        <span className="text-sm text-slate-700">
+                          {collection.locationName}
+                        </span>
+                      </div>
+                    </td>
 
-                          <span className="text-sm font-bold text-slate-900">
-                            {Number(
-                              collection.quantity || 0
-                            ).toFixed(1)}{' '}
-                            kg
-                          </span>
-                        </div>
-                      </td>
+                    <td className="px-6 py-4 text-sm text-slate-700">
+                      {collection.wasteType}
+                    </td>
 
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-slate-400" />
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Scale className="h-4 w-4 text-slate-400" />
+                        <span className="text-sm text-slate-700">
+                          {Number(collection.quantity || 0).toFixed(1)} kg
+                        </span>
+                      </div>
+                    </td>
 
-                          <span className="text-sm text-slate-700">
-                            {formatDate(
-                              collection.collectionDate
-                            )}
-                          </span>
-                        </div>
-                      </td>
+                    <td className="px-6 py-4 text-sm text-slate-700">
+                      {formatDate(collection.collectionDate)}
+                    </td>
 
-                      <td className="px-6 py-4">
-                        {collection.collected ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-                            <CheckCircle className="h-3.5 w-3.5" />
-                            Collected
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700">
-                            <XCircle className="h-3.5 w-3.5" />
-                            Not Collected
-                          </span>
-                        )}
-                      </td>
-
-                    </tr>
-                  ))}
-
-                </tbody>
-              </table>
-            </div>
-          )}
-
+                    <td className="px-6 py-4">
+                      {collection.collected ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                          <CheckCircle className="h-3.5 w-3.5" />
+                          Collected
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700">
+                          <XCircle className="h-3.5 w-3.5" />
+                          Not Collected
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-
     </div>
   );
 };
+
+export default EmployeeCollections;
